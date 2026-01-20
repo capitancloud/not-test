@@ -1,0 +1,495 @@
+/*
+ * style.css
+ * =========
+ * Stili per la PWA con notifiche push OneSignal
+ * 
+ * Design System:
+ * - Palette scura con accenti vivaci
+ * - Layout mobile-first
+ * - Animazioni subtle per feedback UX
+ */
+
+/* ===================================
+   CSS Custom Properties (Variabili)
+   =================================== */
+:root {
+    /* Colori Primari */
+    --color-bg-primary: #0f0f1a;
+    --color-bg-secondary: #1a1a2e;
+    --color-bg-card: #16213e;
+    --color-bg-card-hover: #1f2b47;
+    
+    /* Accenti */
+    --color-accent-primary: #e94560;
+    --color-accent-secondary: #00d4aa;
+    --color-accent-tertiary: #7b68ee;
+    
+    /* Testo */
+    --color-text-primary: #ffffff;
+    --color-text-secondary: #a0a0b8;
+    --color-text-muted: #6b6b80;
+    
+    /* Stato */
+    --color-success: #00d4aa;
+    --color-warning: #ffb347;
+    --color-error: #e94560;
+    
+    /* Ombre */
+    --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --shadow-button: 0 4px 16px rgba(233, 69, 96, 0.3);
+    --shadow-glow: 0 0 40px rgba(233, 69, 96, 0.15);
+    
+    /* Transizioni */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+    
+    /* Spacing */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+    
+    /* Border Radius */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-full: 50%;
+}
+
+/* ===================================
+   Reset & Base
+   =================================== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Background con effetto gradiente */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(ellipse at top left, rgba(233, 69, 96, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at bottom right, rgba(123, 104, 238, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at center, rgba(0, 212, 170, 0.03) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* ===================================
+   Layout Container
+   =================================== */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: var(--space-md);
+}
+
+/* ===================================
+   Header
+   =================================== */
+.app-header {
+    padding: var(--space-lg) 0;
+    text-align: center;
+}
+
+.logo {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    letter-spacing: -0.02em;
+}
+
+.logo svg {
+    width: 32px;
+    height: 32px;
+    color: var(--color-accent-primary);
+}
+
+/* ===================================
+   Main Content
+   =================================== */
+.app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+/* ===================================
+   Hero Section
+   =================================== */
+.hero {
+    text-align: center;
+    padding: var(--space-xl) 0;
+}
+
+.hero h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-tertiary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: var(--space-sm);
+}
+
+.hero-subtitle {
+    font-size: 1.1rem;
+    color: var(--color-text-secondary);
+}
+
+/* ===================================
+   Cards
+   =================================== */
+.card {
+    background: var(--color-bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl);
+    box-shadow: var(--shadow-card);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card), var(--shadow-glow);
+}
+
+.card-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto var(--space-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-tertiary));
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-button);
+}
+
+.card-icon svg {
+    width: 32px;
+    height: 32px;
+    color: white;
+}
+
+.card h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: var(--space-sm);
+}
+
+.card p {
+    color: var(--color-text-secondary);
+    text-align: center;
+    margin-bottom: var(--space-lg);
+}
+
+/* Card Install */
+.install-card .card-icon {
+    background: linear-gradient(135deg, var(--color-accent-secondary), #00a88a);
+    box-shadow: 0 4px 16px rgba(0, 212, 170, 0.3);
+}
+
+/* Info Card */
+.info-card {
+    background: rgba(22, 33, 62, 0.6);
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.info-card h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: var(--space-md);
+    color: var(--color-text-secondary);
+}
+
+.feature-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.feature-list li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+}
+
+.feature-list svg {
+    width: 20px;
+    height: 20px;
+    color: var(--color-accent-secondary);
+    flex-shrink: 0;
+}
+
+/* ===================================
+   Buttons
+   =================================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    width: 100%;
+    padding: var(--space-md) var(--space-lg);
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Button Primary */
+.btn-primary {
+    background: linear-gradient(135deg, var(--color-accent-primary), #c73b52);
+    color: white;
+    box-shadow: var(--shadow-button);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(233, 69, 96, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+/* Button Secondary */
+.btn-secondary {
+    background: linear-gradient(135deg, var(--color-accent-secondary), #00a88a);
+    color: white;
+    box-shadow: 0 4px 16px rgba(0, 212, 170, 0.3);
+}
+
+.btn-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(0, 212, 170, 0.4);
+}
+
+/* Button Disabled */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Button ripple effect */
+.btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn:active::after {
+    width: 300px;
+    height: 300px;
+}
+
+/* ===================================
+   Status Badge
+   =================================== */
+.status-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+    animation: fadeIn var(--transition-normal);
+}
+
+.status-badge.success {
+    background: rgba(0, 212, 170, 0.15);
+    color: var(--color-success);
+    border: 1px solid rgba(0, 212, 170, 0.3);
+}
+
+.status-badge.warning {
+    background: rgba(255, 179, 71, 0.15);
+    color: var(--color-warning);
+    border: 1px solid rgba(255, 179, 71, 0.3);
+}
+
+.status-badge.error {
+    background: rgba(233, 69, 96, 0.15);
+    color: var(--color-error);
+    border: 1px solid rgba(233, 69, 96, 0.3);
+}
+
+.status-icon {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 2s infinite;
+}
+
+/* ===================================
+   Footer
+   =================================== */
+.app-footer {
+    padding: var(--space-xl) 0 var(--space-md);
+    text-align: center;
+}
+
+.app-footer p {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+}
+
+/* ===================================
+   Utility Classes
+   =================================== */
+.hidden {
+    display: none !important;
+}
+
+/* ===================================
+   Animations
+   =================================== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Card entrance animations */
+.card {
+    animation: slideUp var(--transition-slow) ease-out;
+}
+
+.card:nth-child(1) { animation-delay: 0.1s; }
+.card:nth-child(2) { animation-delay: 0.2s; }
+.card:nth-child(3) { animation-delay: 0.3s; }
+
+/* ===================================
+   Responsive Adjustments
+   =================================== */
+@media (min-width: 768px) {
+    .app-container {
+        padding: var(--space-xl);
+    }
+    
+    .hero h1 {
+        font-size: 3rem;
+    }
+    
+    .card {
+        padding: var(--space-2xl);
+    }
+}
+
+/* Supporto per safe-area (notch iPhone) */
+@supports (padding-top: env(safe-area-inset-top)) {
+    .app-container {
+        padding-top: calc(var(--space-md) + env(safe-area-inset-top));
+        padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom));
+        padding-left: calc(var(--space-md) + env(safe-area-inset-left));
+        padding-right: calc(var(--space-md) + env(safe-area-inset-right));
+    }
+}
+
+/* ===================================
+   Modalità Standalone (App Installata)
+   =================================== */
+@media (display-mode: standalone) {
+    .install-card {
+        display: none !important;
+    }
+}
+
+/* ===================================
+   Preferenza Reduced Motion
+   =================================== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+

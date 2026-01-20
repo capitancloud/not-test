@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Meta per PWA -->
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PWA Push">
+    
+    <!-- Manifest PWA -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Icona Apple Touch -->
+    <link rel="apple-touch-icon" href="https://via.placeholder.com/180x180.png?text=PWA">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://via.placeholder.com/32x32.png?text=PWA">
+    
+    <title>PWA Notifiche Push</title>
+    
+    <!-- Stili -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- 
+        OneSignal SDK 
+        Caricamento asincrono per non bloccare il rendering
+    -->
+    <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                <span>PWA Push</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="app-main">
+            <!-- Hero Section -->
+            <section class="hero">
+                <h1>Notifiche Push</h1>
+                <p class="hero-subtitle">Resta sempre aggiornato con le nostre notifiche</p>
+            </section>
+
+            <!-- Card Notifiche -->
+            <section class="card notification-card">
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                    </svg>
+                </div>
+                <h2>Attiva le Notifiche</h2>
+                <p>Ricevi aggiornamenti importanti direttamente sul tuo dispositivo, anche quando l'app è chiusa.</p>
+                
+                <!-- 
+                    Bottone per attivare le notifiche
+                    
+                    IMPORTANTE: La richiesta del permesso notifiche NON deve avvenire
+                    automaticamente al caricamento della pagina. Questo perché:
+                    
+                    1. È una pessima UX - l'utente non sa ancora cosa offre l'app
+                    2. I browser penalizzano i siti che chiedono permessi on-load
+                    3. L'utente è più propenso ad accettare se capisce il valore
+                    4. Google e altri browser possono bloccare richieste automatiche
+                    
+                    La richiesta DEVE partire da un'interazione esplicita dell'utente
+                    (click sul bottone), così da essere contestualizzata e consapevole.
+                -->
+                <button id="btn-enable-notifications" class="btn btn-primary">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                    </svg>
+                    <span>Attiva Notifiche</span>
+                </button>
+                
+                <!-- Stato delle notifiche -->
+                <div id="notification-status" class="status-badge hidden">
+                    <span class="status-icon"></span>
+                    <span class="status-text"></span>
+                </div>
+            </section>
+
+            <!-- 
+                Card Installazione PWA (CTA)
+                
+                Questa sezione invita l'utente a installare l'app sulla home.
+                Viene mostrata solo quando l'installazione è disponibile
+                (evento beforeinstallprompt intercettato).
+            -->
+            <section id="install-card" class="card install-card hidden">
+                <div class="card-icon install-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                    </svg>
+                </div>
+                <h2>Installa l'App</h2>
+                <p>Aggiungi questa app alla tua home per un accesso rapido e un'esperienza completa, anche offline.</p>
+                <button id="btn-install" class="btn btn-secondary">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                    </svg>
+                    <span>Installa sulla Home</span>
+                </button>
+            </section>
+
+            <!-- Info Card -->
+            <section class="card info-card">
+                <h3>Come funziona?</h3>
+                <ul class="feature-list">
+                    <li>
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                        </svg>
+                        <span>Notifiche anche a browser chiuso</span>
+                    </li>
+                    <li>
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                        </svg>
+                        <span>Nessuna registrazione richiesta</span>
+                    </li>
+                    <li>
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                        </svg>
+                        <span>Puoi disattivarle in qualsiasi momento</span>
+                    </li>
+                </ul>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>PWA Push Demo &copy; 2026</p>
+        </footer>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
+
