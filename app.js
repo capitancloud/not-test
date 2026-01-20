@@ -264,6 +264,120 @@ btnEnableNotifications.addEventListener('click', handleEnableNotifications);
 // ===================================
 
 /**
+ * Rileva se l'utente è su un dispositivo mobile
+ * Usato per mostrare la card di installazione anche senza beforeinstallprompt
+ */
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+/**
+ * Rileva se l'utente è su iOS (iPhone/iPad)
+ * iOS non supporta beforeinstallprompt, serve un approccio diverso
+ */
+function isIOS() {
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+/**
+ * Rileva se l'utente è su Android
+ */
+function isAndroid() {
+    return /Android/i.test(navigator.userAgent);
+}
+
+/**
+ * Rileva se l'app è già installata (modalità standalone)
+ * In questo caso non mostriamo la card di installazione
+ */
+function isAppInstalled() {
+    // Controlla display-mode standalone (Android/Desktop)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    // Controlla navigator.standalone (iOS Safari)
+    const isIOSStandalone = window.navigator.standalone === true;
+    
+    return isStandalone || isIOSStandalone;
+}
+
+/**
+ * Mostra istruzioni manuali per l'installazione
+ * Usato come fallback quando beforeinstallprompt non è disponibile
+ */
+function showManualInstallInstructions() {
+    if (isIOS()) {
+        // Istruzioni per iOS Safari
+        alert(
+            '📱 Per installare l\'app:\n\n' +
+            '1. Tocca l\'icona Condividi (quadrato con freccia in basso)\n' +
+            '2. Scorri verso il basso\n' +
+            '3. Tocca "Aggiungi a Home"\n' +
+            '4. Conferma toccando "Aggiungi"'
+        );
+    } else if (isAndroid()) {
+        // Istruzioni per Android Chrome
+        alert(
+            '📱 Per installare l\'app:\n\n' +
+            '1. Tocca il menu (⋮) in alto a destra\n' +
+            '2. Tocca "Installa app" o "Aggiungi a schermata Home"\n' +
+            '3. Conferma l\'installazione'
+        );
+    } else {
+        // Istruzioni generiche
+        alert(
+            '💻 Per installare l\'app:\n\n' +
+            'Cerca l\'opzione "Installa" nel menu del browser\n' +
+            'o nella barra degli indirizzi.'
+        );
+    }
+}
+
+/**
+ * Mostra la card di installazione su dispositivi mobili
+ * Viene chiamata all'avvio per garantire che la CTA sia sempre visibile
+ * 
+ * Su Android: il browser potrebbe emettere beforeinstallprompt, ma lo mostriamo
+ * comunque per dare più visibilità all'opzione di installazione
+ * 
+ * Su iOS: beforeinstallprompt non esiste, quindi mostriamo sempre istruzioni manuali
+ */
+function showInstallCardOnMobile() {
+    console.log('[PWA] Verifica installazione mobile...', {
+        isMobile: isMobileDevice(),
+        isInstalled: isAppInstalled(),
+        isIOS: isIOS(),
+        isAndroid: isAndroid()
+    });
+    
+    // Non mostrare se l'app è già installata
+    if (isAppInstalled()) {
+        console.log('[PWA] App già installata, nascondo card');
+        installCard.classList.add('hidden');
+        return;
+    }
+    
+    // Su mobile, mostra sempre la card di installazione
+    if (isMobileDevice()) {
+        console.log('[PWA] Dispositivo mobile rilevato, mostro card installazione');
+        installCard.classList.remove('hidden');
+        
+        // Se non c'è il prompt automatico (iOS o Android senza evento)
+        // configura il bottone per mostrare istruzioni manuali
+        if (!deferredInstallPrompt) {
+            const btnText = btnInstall.querySelector('span');
+            
+            if (isIOS()) {
+                btnText.textContent = 'Aggiungi a Home';
+            } else {
+                btnText.textContent = 'Installa App';
+            }
+            
+            // Imposta handler per istruzioni manuali
+            btnInstall.onclick = showManualInstallInstructions;
+        }
+    }
+}
+
+/**
  * Intercetta l'evento beforeinstallprompt
  * 
  * Questo evento viene emesso dal browser quando:
@@ -272,13 +386,16 @@ btnEnableNotifications.addEventListener('click', handleEnableNotifications);
  * 3. Ha un service worker registrato
  * 4. L'utente non ha già installato l'app
  * 
+ * NOTA: iOS Safari NON supporta questo evento!
+ * Per iOS usiamo showInstallCardOnMobile() con istruzioni manuali
+ * 
  * Salvando l'evento, possiamo mostrare il prompt di installazione
  * in un momento più appropriato (es. dopo un click su un bottone)
  */
 window.addEventListener('beforeinstallprompt', (event) => {
     console.log('[PWA] Evento beforeinstallprompt intercettato');
     
-    // Previeni il prompt automatico del browser
+    // Previeni il prompt automatico del browser (mini-infobar)
     event.preventDefault();
     
     // Salva l'evento per usarlo dopo
@@ -286,6 +403,11 @@ window.addEventListener('beforeinstallprompt', (event) => {
     
     // Mostra la card di installazione
     installCard.classList.remove('hidden');
+    
+    // Ripristina il testo e l'handler originale del bottone
+    // (potrebbe essere stato modificato da showInstallCardOnMobile)
+    btnInstall.querySelector('span').textContent = 'Installa sulla Home';
+    btnInstall.onclick = handleInstallClick;
 });
 
 /**
@@ -412,6 +534,11 @@ function init() {
         protocol: window.location.protocol,
         isSecure: window.location.protocol === 'https:' || window.location.hostname === 'localhost'
     });
+    
+    // Mostra card installazione su dispositivi mobili
+    // Questo garantisce che la CTA sia visibile anche su iOS
+    // dove beforeinstallprompt non viene mai emesso
+    showInstallCardOnMobile();
     
     console.log('[PWA] App inizializzata con successo');
 }
