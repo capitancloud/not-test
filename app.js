@@ -69,6 +69,11 @@ let deferredInstallPrompt = null;
  */
 window.OneSignal = window.OneSignal || [];
 
+/**
+ * Flag per evitare che lo stato venga sovrascritto dopo la sottoscrizione
+ */
+let isSubscriptionConfirmed = false;
+
 OneSignal.push(function() {
     OneSignal.init({
         // ID dell'applicazione OneSignal (obbligatorio)
@@ -85,8 +90,7 @@ OneSignal.push(function() {
             enable: false
         },
         
-        // Disabilita la richiesta automatica del permesso
-        // FONDAMENTALE: il permesso deve essere richiesto solo su interazione utente
+        // Abilita auto-resubscribe per utenti che hanno già accettato
         autoResubscribe: true,
         
         // Permette le notifiche su HTTP in localhost (per sviluppo)
@@ -95,41 +99,21 @@ OneSignal.push(function() {
     
     console.log('[OneSignal] SDK inizializzato');
     
-    // Aggiorna l'UI in base allo stato corrente delle notifiche
-    checkNotificationStatus();
+    // Verifica stato iniziale dopo un breve delay per dare tempo all'SDK
+    setTimeout(async () => {
+        await checkAndUpdateStatus();
+    }, 1000);
     
-    // Listener per cambiamenti nello stato della sottoscrizione
-    // Questo viene chiamato quando l'utente si iscrive o disiscrive
+    // Listener PRINCIPALE per cambiamenti nello stato della sottoscrizione
     OneSignal.on('subscriptionChange', function(isSubscribed) {
-        console.log('[OneSignal] subscriptionChange evento - isSubscribed:', isSubscribed);
-        if (isSubscribed) {
-            updateUIStatus('subscribed');
-        } else {
-            updateUIStatus('unsubscribed');
-        }
-    });
-    
-    // Listener per quando l'utente accetta/rifiuta le notifiche nel browser
-    OneSignal.on('notificationPermissionChange', function(permissionChange) {
-        console.log('[OneSignal] notificationPermissionChange evento:', permissionChange);
+        console.log('[OneSignal] 🔔 subscriptionChange:', isSubscribed);
         
-        // permissionChange può essere: 'granted', 'denied', 'default'
-        if (permissionChange.to === 'granted') {
-            console.log('[OneSignal] Permesso CONCESSO!');
-            // Forza aggiornamento UI dopo un breve delay
-            setTimeout(() => {
-                checkNotificationStatus();
-            }, 500);
-        } else if (permissionChange.to === 'denied') {
-            console.log('[OneSignal] Permesso NEGATO');
-            updateUIStatus('denied');
+        if (isSubscribed) {
+            isSubscriptionConfirmed = true;
+            updateUIStatus('subscribed');
         }
-    });
-    
-    // Listener per quando la registrazione è completata con successo
-    OneSignal.on('register', function() {
-        console.log('[OneSignal] Registrazione completata con successo!');
-        updateUIStatus('subscribed');
+        // NON aggiorniamo a 'unsubscribed' automaticamente per evitare flicker
+        // Lo facciamo solo se l'utente esplicitamente si disiscrive
     });
 });
 
@@ -138,28 +122,49 @@ OneSignal.push(function() {
 // ===================================
 
 /**
- * Verifica lo stato corrente delle notifiche e aggiorna l'UI
+ * Verifica e aggiorna lo stato delle notifiche
+ * Funzione principale per la verifica dello stato
  */
-async function checkNotificationStatus() {
+async function checkAndUpdateStatus() {
     try {
-        // Verifica se l'utente è già iscritto
-        const isSubscribed = await OneSignal.isPushNotificationsEnabled();
-        // Verifica il permesso del browser
+        // Usa le API di OneSignal per verificare lo stato
+        const isPushEnabled = await OneSignal.isPushNotificationsEnabled();
         const permission = await OneSignal.getNotificationPermission();
+        const userId = await OneSignal.getUserId();
         
-        console.log('[PWA] Stato notifiche:', { isSubscribed, permission });
+        console.log('[PWA] 📊 Stato completo:', { 
+            isPushEnabled, 
+            permission, 
+            userId,
+            isSubscriptionConfirmed 
+        });
         
-        if (isSubscribed) {
+        // Se abbiamo un userId e il permesso è granted, siamo iscritti
+        if (isPushEnabled || (permission === 'granted' && userId)) {
+            isSubscriptionConfirmed = true;
             updateUIStatus('subscribed');
         } else if (permission === 'denied') {
             updateUIStatus('denied');
-        } else {
+        } else if (!isSubscriptionConfirmed) {
+            // Solo se non abbiamo già confermato la sottoscrizione
             updateUIStatus('default');
         }
+        
+        return isPushEnabled;
     } catch (error) {
-        console.error('[PWA] Errore verifica stato notifiche:', error);
-        updateUIStatus('error');
+        console.error('[PWA] Errore verifica stato:', error);
+        if (!isSubscriptionConfirmed) {
+            updateUIStatus('error');
+        }
+        return false;
     }
+}
+
+/**
+ * Alias per compatibilità
+ */
+async function checkNotificationStatus() {
+    return checkAndUpdateStatus();
 }
 
 /**
@@ -245,7 +250,7 @@ async function handleEnableNotifications() {
         btnEnableNotifications.disabled = true;
         btnEnableNotifications.querySelector('span').textContent = 'Attivazione...';
         
-        console.log('[PWA] Avvio registrazione notifiche...');
+        console.log('[PWA] 🚀 Avvio registrazione notifiche...');
         
         /**
          * registerForPushNotifications() mostra direttamente il prompt
@@ -253,30 +258,34 @@ async function handleEnableNotifications() {
          */
         await OneSignal.registerForPushNotifications();
         
-        console.log('[PWA] registerForPushNotifications completato');
+        console.log('[PWA] ✅ registerForPushNotifications completato');
         
-        // Attendi un momento per permettere a OneSignal di aggiornare lo stato
-        // Il browser potrebbe impiegare un attimo a confermare la sottoscrizione
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Verifica il permesso del browser
+        const permission = await OneSignal.getNotificationPermission();
+        console.log('[PWA] Permesso browser:', permission);
         
-        // Verifica lo stato dopo la registrazione
-        await checkNotificationStatus();
-        
-        // Se ancora non risulta iscritto, riprova dopo un altro momento
-        const isSubscribed = await OneSignal.isPushNotificationsEnabled();
-        console.log('[PWA] Stato iscrizione dopo registrazione:', isSubscribed);
-        
-        if (isSubscribed) {
+        if (permission === 'granted') {
+            // L'utente ha accettato! Imposta lo stato come confermato
+            isSubscriptionConfirmed = true;
             updateUIStatus('subscribed');
+            
+            // Verifica anche con getUserId per conferma
+            const userId = await OneSignal.getUserId();
+            console.log('[PWA] 🆔 User ID OneSignal:', userId);
+            
+            if (userId) {
+                console.log('[PWA] ✅ Iscrizione confermata con userId:', userId);
+            }
+        } else if (permission === 'denied') {
+            updateUIStatus('denied');
         } else {
-            // Potrebbe essere che l'utente ha chiuso il prompt senza rispondere
-            // Ripristina il bottone
+            // L'utente ha chiuso il prompt senza rispondere
             btnEnableNotifications.disabled = false;
             btnEnableNotifications.querySelector('span').textContent = 'Attiva Notifiche';
         }
         
     } catch (error) {
-        console.error('[PWA] Errore attivazione notifiche:', error);
+        console.error('[PWA] ❌ Errore attivazione notifiche:', error);
         
         // Ripristina il bottone in caso di errore
         btnEnableNotifications.disabled = false;
@@ -592,9 +601,9 @@ async function init() {
         isSecure: window.location.protocol === 'https:' || window.location.hostname === 'localhost'
     });
     
-    // Registra il Service Worker PWA per abilitare l'installazione
-    // Questo è fondamentale per il prompt beforeinstallprompt
-    await registerServiceWorker();
+    // NOTA: Non registriamo un Service Worker custom per evitare conflitti con OneSignal
+    // OneSignal registra automaticamente il suo SW (OneSignalSDKWorker.js)
+    // che è sufficiente per le notifiche push E per l'installabilità PWA
     
     // Mostra card installazione su dispositivi mobili
     // Questo garantisce che la CTA sia visibile anche su iOS
