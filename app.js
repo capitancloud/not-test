@@ -494,20 +494,38 @@ function checkBrowserSupport() {
 }
 
 /**
- * Registra il service worker dell'app (non quello di OneSignal)
+ * Registra il service worker PWA
  * 
- * NOTA: OneSignal registra automaticamente il proprio service worker.
- * Questo è solo per funzionalità PWA aggiuntive (es. caching offline).
- * Per questa demo minimale, non è necessario un service worker custom.
+ * Questo SW gestisce:
+ * - Caching delle risorse per funzionamento offline
+ * - Garantisce l'installabilità della PWA
+ * 
+ * NOTA: OneSignal registra separatamente il proprio service worker
+ * per le notifiche push. I due SW coesistono.
  */
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
-            // OneSignal gestisce la registrazione del suo service worker
-            // Non è necessario registrarlo manualmente
-            console.log('[PWA] Service Worker sarà gestito da OneSignal');
+            const registration = await navigator.serviceWorker.register('/sw.js', {
+                scope: '/'
+            });
+            
+            console.log('[PWA] Service Worker registrato con successo:', registration.scope);
+            
+            // Gestisci aggiornamenti del SW
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                console.log('[PWA] Nuovo Service Worker trovato, installazione...');
+                
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        console.log('[PWA] Nuovo Service Worker installato, aggiorna la pagina');
+                    }
+                });
+            });
+            
         } catch (error) {
-            console.error('[PWA] Errore registrazione SW:', error);
+            console.error('[PWA] Errore registrazione Service Worker:', error);
         }
     }
 }
@@ -519,7 +537,7 @@ async function registerServiceWorker() {
 /**
  * Funzione di inizializzazione principale
  */
-function init() {
+async function init() {
     console.log('[PWA] Inizializzazione app...');
     
     // Verifica supporto browser
@@ -534,6 +552,10 @@ function init() {
         protocol: window.location.protocol,
         isSecure: window.location.protocol === 'https:' || window.location.hostname === 'localhost'
     });
+    
+    // Registra il Service Worker PWA per abilitare l'installazione
+    // Questo è fondamentale per il prompt beforeinstallprompt
+    await registerServiceWorker();
     
     // Mostra card installazione su dispositivi mobili
     // Questo garantisce che la CTA sia visibile anche su iOS
