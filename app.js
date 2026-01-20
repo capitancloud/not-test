@@ -127,6 +127,18 @@ OneSignal.push(function() {
  */
 async function checkAndUpdateStatus() {
     try {
+        // Prima verifica se le notifiche sono supportate
+        if (!arePushNotificationsSupported()) {
+            console.log('[PWA] ⚠️ Push non supportate su questo dispositivo');
+            
+            if (isIOS() && !isAppInstalled()) {
+                updateUIStatus('ios-install-required');
+            } else {
+                updateUIStatus('not-supported');
+            }
+            return false;
+        }
+        
         // Usa le API di OneSignal per verificare lo stato
         const isPushEnabled = await OneSignal.isPushNotificationsEnabled();
         const permission = await OneSignal.getNotificationPermission();
@@ -153,7 +165,11 @@ async function checkAndUpdateStatus() {
         return isPushEnabled;
     } catch (error) {
         console.error('[PWA] Errore verifica stato:', error);
-        if (!isSubscriptionConfirmed) {
+        
+        // Su iOS senza PWA, mostra messaggio appropriato invece di errore generico
+        if (isIOS() && !isAppInstalled()) {
+            updateUIStatus('ios-install-required');
+        } else if (!isSubscriptionConfirmed) {
             updateUIStatus('error');
         }
         return false;
@@ -211,6 +227,22 @@ function updateUIStatus(status) {
             button.disabled = false;
             break;
             
+        case 'ios-install-required':
+            // iOS richiede installazione PWA prima delle notifiche
+            statusBadge.classList.add('warning');
+            statusText.textContent = 'Installa prima l\'app sulla Home';
+            button.disabled = true;
+            button.querySelector('span').textContent = 'Installa App per Notifiche';
+            break;
+            
+        case 'not-supported':
+            // Browser non supporta le notifiche push
+            statusBadge.classList.add('error');
+            statusText.textContent = 'Notifiche non supportate';
+            button.disabled = true;
+            button.querySelector('span').textContent = 'Non Supportato';
+            break;
+            
         case 'unsubscribed':
             // Utente si è disiscritto
             statusBadge.classList.add('warning');
@@ -246,6 +278,20 @@ function updateUIStatus(status) {
  */
 async function handleEnableNotifications() {
     try {
+        // Verifica se le notifiche sono supportate
+        if (!arePushNotificationsSupported()) {
+            console.log('[PWA] ⚠️ Notifiche non supportate su questo dispositivo/browser');
+            
+            if (isIOS() && !isAppInstalled()) {
+                // iOS: l'utente deve prima installare la PWA
+                updateUIStatus('ios-install-required');
+                return;
+            } else {
+                updateUIStatus('not-supported');
+                return;
+            }
+        }
+        
         // Disabilita temporaneamente il bottone per evitare click multipli
         btnEnableNotifications.disabled = true;
         btnEnableNotifications.querySelector('span').textContent = 'Attivazione...';
@@ -291,12 +337,15 @@ async function handleEnableNotifications() {
         btnEnableNotifications.disabled = false;
         btnEnableNotifications.querySelector('span').textContent = 'Attiva Notifiche';
         
-        // Gestisci errori specifici di OneSignal
+        // Gestisci errori specifici
         const errorMessage = error.message || error.toString();
         
         if (errorMessage.includes('can only be used on')) {
             // Errore di dominio non autorizzato
             updateUIStatus('domain-error');
+        } else if (isIOS() && !isAppInstalled()) {
+            // iOS senza PWA installata
+            updateUIStatus('ios-install-required');
         } else {
             // Mostra messaggio di errore generico
             updateUIStatus('error');
@@ -324,7 +373,30 @@ function isMobileDevice() {
  * iOS non supporta beforeinstallprompt, serve un approccio diverso
  */
 function isIOS() {
-    return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent) || 
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+/**
+ * Verifica se le notifiche push sono supportate su questo dispositivo/browser
+ * 
+ * Su iOS:
+ * - Le notifiche web funzionano SOLO da iOS 16.4+
+ * - SOLO quando l'app è installata come PWA (standalone mode)
+ * - NON funzionano da Safari normale
+ */
+function arePushNotificationsSupported() {
+    // Verifica supporto base
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+        return false;
+    }
+    
+    // Su iOS, le notifiche funzionano solo in standalone mode (PWA installata)
+    if (isIOS() && !isAppInstalled()) {
+        return false;
+    }
+    
+    return true;
 }
 
 /**
@@ -598,12 +670,17 @@ async function init() {
     console.log('[PWA] Ambiente:', {
         hostname: window.location.hostname,
         protocol: window.location.protocol,
-        isSecure: window.location.protocol === 'https:' || window.location.hostname === 'localhost'
+        isSecure: window.location.protocol === 'https:' || window.location.hostname === 'localhost',
+        isIOS: isIOS(),
+        isAppInstalled: isAppInstalled(),
+        pushSupported: arePushNotificationsSupported()
     });
     
-    // NOTA: Non registriamo un Service Worker custom per evitare conflitti con OneSignal
-    // OneSignal registra automaticamente il suo SW (OneSignalSDKWorker.js)
-    // che è sufficiente per le notifiche push E per l'installabilità PWA
+    // Su iOS senza PWA installata, mostra subito il messaggio appropriato
+    if (isIOS() && !isAppInstalled()) {
+        console.log('[PWA] 📱 iOS rilevato senza PWA installata');
+        updateUIStatus('ios-install-required');
+    }
     
     // Mostra card installazione su dispositivi mobili
     // Questo garantisce che la CTA sia visibile anche su iOS
