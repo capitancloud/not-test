@@ -93,19 +93,43 @@ OneSignal.push(function() {
         allowLocalhostAsSecureOrigin: true
     });
     
+    console.log('[OneSignal] SDK inizializzato');
+    
     // Aggiorna l'UI in base allo stato corrente delle notifiche
     checkNotificationStatus();
     
     // Listener per cambiamenti nello stato della sottoscrizione
+    // Questo viene chiamato quando l'utente si iscrive o disiscrive
     OneSignal.on('subscriptionChange', function(isSubscribed) {
-        console.log('[OneSignal] Stato sottoscrizione cambiato:', isSubscribed);
-        updateUIStatus(isSubscribed ? 'subscribed' : 'unsubscribed');
+        console.log('[OneSignal] subscriptionChange evento - isSubscribed:', isSubscribed);
+        if (isSubscribed) {
+            updateUIStatus('subscribed');
+        } else {
+            updateUIStatus('unsubscribed');
+        }
     });
     
-    // Listener per quando l'utente accetta/rifiuta le notifiche
+    // Listener per quando l'utente accetta/rifiuta le notifiche nel browser
     OneSignal.on('notificationPermissionChange', function(permissionChange) {
-        console.log('[OneSignal] Permesso notifiche cambiato:', permissionChange);
-        checkNotificationStatus();
+        console.log('[OneSignal] notificationPermissionChange evento:', permissionChange);
+        
+        // permissionChange può essere: 'granted', 'denied', 'default'
+        if (permissionChange.to === 'granted') {
+            console.log('[OneSignal] Permesso CONCESSO!');
+            // Forza aggiornamento UI dopo un breve delay
+            setTimeout(() => {
+                checkNotificationStatus();
+            }, 500);
+        } else if (permissionChange.to === 'denied') {
+            console.log('[OneSignal] Permesso NEGATO');
+            updateUIStatus('denied');
+        }
+    });
+    
+    // Listener per quando la registrazione è completata con successo
+    OneSignal.on('register', function() {
+        console.log('[OneSignal] Registrazione completata con successo!');
+        updateUIStatus('subscribed');
     });
 });
 
@@ -221,20 +245,35 @@ async function handleEnableNotifications() {
         btnEnableNotifications.disabled = true;
         btnEnableNotifications.querySelector('span').textContent = 'Attivazione...';
         
+        console.log('[PWA] Avvio registrazione notifiche...');
+        
         /**
          * registerForPushNotifications() mostra direttamente il prompt
          * nativo del browser per le notifiche.
-         * 
-         * ALTERNATIVA: Se hai configurato lo slidedown sulla dashboard OneSignal,
-         * puoi usare invece:
-         * await OneSignal.showSlidedownPrompt();
          */
         await OneSignal.registerForPushNotifications();
         
-        console.log('[PWA] Registrazione notifiche completata');
+        console.log('[PWA] registerForPushNotifications completato');
+        
+        // Attendi un momento per permettere a OneSignal di aggiornare lo stato
+        // Il browser potrebbe impiegare un attimo a confermare la sottoscrizione
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Verifica lo stato dopo la registrazione
-        checkNotificationStatus();
+        await checkNotificationStatus();
+        
+        // Se ancora non risulta iscritto, riprova dopo un altro momento
+        const isSubscribed = await OneSignal.isPushNotificationsEnabled();
+        console.log('[PWA] Stato iscrizione dopo registrazione:', isSubscribed);
+        
+        if (isSubscribed) {
+            updateUIStatus('subscribed');
+        } else {
+            // Potrebbe essere che l'utente ha chiuso il prompt senza rispondere
+            // Ripristina il bottone
+            btnEnableNotifications.disabled = false;
+            btnEnableNotifications.querySelector('span').textContent = 'Attiva Notifiche';
+        }
         
     } catch (error) {
         console.error('[PWA] Errore attivazione notifiche:', error);
