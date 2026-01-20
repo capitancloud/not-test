@@ -146,6 +146,8 @@ function updateUI(status) {
 window.OneSignal = window.OneSignal || [];
 
 OneSignal.push(function() {
+    console.log('[OneSignal] Inizializzazione SDK...');
+    
     // Inizializza SDK
     OneSignal.init({
         appId: CONFIG.oneSignalAppId,
@@ -156,15 +158,23 @@ OneSignal.push(function() {
         allowLocalhostAsSecureOrigin: true
     });
     
+    console.log('[OneSignal] SDK inizializzato');
+    
     // Verifica stato iniziale (con delay per dare tempo all'SDK)
-    setTimeout(checkNotificationState, 1000);
+    setTimeout(checkNotificationState, 1500);
     
     // Listener per cambiamenti sottoscrizione
-    OneSignal.on('subscriptionChange', (isSubscribed) => {
+    OneSignal.on('subscriptionChange', function(isSubscribed) {
+        console.log('[OneSignal] subscriptionChange:', isSubscribed);
         if (isSubscribed) {
             state.isSubscriptionConfirmed = true;
             updateUI('subscribed');
         }
+    });
+    
+    // Listener per permessi
+    OneSignal.on('notificationPermissionChange', function(permissionChange) {
+        console.log('[OneSignal] permissionChange:', permissionChange);
     });
 });
 
@@ -173,8 +183,11 @@ OneSignal.push(function() {
  */
 async function checkNotificationState() {
     try {
+        console.log('[OneSignal] Verifica stato...');
+        
         // Verifica supporto
         if (!Device.supportsPush()) {
+            console.log('[OneSignal] Push non supportate');
             updateUI(Device.isIOS() && !Device.isStandalone() ? 'ios-install-required' : 'not-supported');
             return false;
         }
@@ -186,18 +199,23 @@ async function checkNotificationState() {
             OneSignal.getUserId()
         ]);
         
+        console.log('[OneSignal] Stato:', { isPushEnabled, permission, userId });
+        
         if (isPushEnabled || (permission === 'granted' && userId)) {
             state.isSubscriptionConfirmed = true;
             updateUI('subscribed');
+            console.log('[OneSignal] ✅ Utente iscritto');
         } else if (permission === 'denied') {
             updateUI('denied');
+            console.log('[OneSignal] ❌ Permesso negato');
         } else if (!state.isSubscriptionConfirmed) {
             updateUI('default');
+            console.log('[OneSignal] ⏳ In attesa di iscrizione');
         }
         
         return isPushEnabled;
     } catch (error) {
-        console.error('[PWA] Errore verifica stato:', error);
+        console.error('[OneSignal] Errore verifica stato:', error);
         if (Device.isIOS() && !Device.isStandalone()) {
             updateUI('ios-install-required');
         } else if (!state.isSubscriptionConfirmed) {
@@ -222,13 +240,45 @@ async function handleNotificationClick() {
     DOM.btnNotifications.querySelector('span').textContent = 'Attivazione...';
     
     try {
+        console.log('[OneSignal] Avvio registrazione...');
+        
         await OneSignal.registerForPushNotifications();
         
+        console.log('[OneSignal] registerForPushNotifications completato');
+        
+        // Attendi che OneSignal completi la registrazione
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
         const permission = await OneSignal.getNotificationPermission();
+        console.log('[OneSignal] Permesso:', permission);
         
         if (permission === 'granted') {
-            state.isSubscriptionConfirmed = true;
-            updateUI('subscribed');
+            // Verifica che l'utente sia effettivamente registrato su OneSignal
+            const userId = await OneSignal.getUserId();
+            console.log('[OneSignal] User ID:', userId);
+            
+            if (userId) {
+                // Registrazione confermata con userId
+                state.isSubscriptionConfirmed = true;
+                updateUI('subscribed');
+                console.log('[OneSignal] ✅ Registrazione completa!');
+            } else {
+                // Permesso concesso ma userId non ancora disponibile
+                // Riprova dopo un altro delay
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                const retryUserId = await OneSignal.getUserId();
+                
+                if (retryUserId) {
+                    state.isSubscriptionConfirmed = true;
+                    updateUI('subscribed');
+                    console.log('[OneSignal] ✅ Registrazione completa (retry)!');
+                } else {
+                    console.warn('[OneSignal] ⚠️ Permesso ok ma userId non disponibile');
+                    // Consideriamo comunque come successo se il permesso è granted
+                    state.isSubscriptionConfirmed = true;
+                    updateUI('subscribed');
+                }
+            }
         } else if (permission === 'denied') {
             updateUI('denied');
         } else {
@@ -237,7 +287,7 @@ async function handleNotificationClick() {
             DOM.btnNotifications.querySelector('span').textContent = 'Attiva Notifiche';
         }
     } catch (error) {
-        console.error('[PWA] Errore attivazione:', error);
+        console.error('[OneSignal] Errore:', error);
         
         DOM.btnNotifications.disabled = false;
         DOM.btnNotifications.querySelector('span').textContent = 'Attiva Notifiche';
